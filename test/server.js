@@ -231,6 +231,54 @@ describe("injecting functions", function () {
       })
     })
   })
+  it("supports searches - as I know the key", function (done) {
+    // startkey is the value from the _updated field
+    // in the search response
+    var res0 = require('./fixtures/search0.json')
+    var res1 = require('./fixtures/search1.json')
+    function plugin (s) {
+      s
+        .get("/-/all")
+        .reply(200, res0)
+        .get("/-/all/since?stale=update_after&startkey=1389783441029")
+        .reply(200, res1)
+    }
+    mr({port: 1331, mocks: plugin}, function (s) {
+      npm.load({cache: tempdir, registry: address}, function () {
+        npm.commands.search([], true, function (err, res) {
+          npm.commands.search([], true, function (err, res) {
+            assert.equal(res.riblet.name, "riblet")
+            s.close()
+            done()
+          })
+        })
+      })
+    })
+  })
+  it("supports searches - with regexp replacing", function (done) {
+    var res0 = require('./fixtures/search0.json')
+    var res1 = require('./fixtures/search1.json')
+    function plugin (s) {
+      s
+        .filteringPathRegEx(/since\?stale=update_after&startkey=[^&]*/g,
+          "since?stale=update_after&startkey=foo")
+        .get("/-/all")
+        .reply(200, res0)
+        .get("/-/all/since?stale=update_after&startkey=foo")
+        .reply(200, res1)
+    }
+    mr({port: 1331, mocks: plugin}, function (s) {
+      npm.load({cache: tempdir, registry: address}, function () {
+        npm.commands.search([], true, function (err, res) {
+          npm.commands.search([], true, function (err, res) {
+            assert.equal(res.riblet.name, "riblet")
+            s.close()
+            done()
+          })
+        })
+      })
+    })
+  })
 })
 
 describe("api", function () {
